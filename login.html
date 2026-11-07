@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Token Login</title>
+<style>
+  :root{--bg:#0a0c11;--card:#12151d;--acc:#5865f2;--ok:#3ba55d;--txt:#e8eaf2;--mut:#7d8494}
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px;background:var(--bg);color:var(--txt);
+       font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+  h1{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
+     margin:0 0 18px;font-weight:700}
+  .card{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px}
+  .who{font-weight:700;margin-bottom:2px}
+  .tok{font:11px/1.4 Consolas,monospace;color:var(--mut);word-break:break-all;margin:6px 0 12px}
+  .row{display:flex;gap:8px}
+  button{flex:1;border:0;border-radius:8px;padding:11px;font:600 12px "Segoe UI",sans-serif;
+         cursor:pointer;color:#fff;background:#1a1e28;transition:.15s}
+  button:hover{filter:brightness(1.25)}
+  .go{background:var(--ok)}
+  .done{background:var(--acc)}
+  .hint{color:var(--mut);font-size:12px;margin-top:16px;line-height:1.6}
+  code{background:#1a1e28;padding:1px 5px;border-radius:4px;color:#b9c0d0}
+</style>
+</head>
+<body>
+<h1>Token Login</h1>
+<div id="list"></div>
+<p class="hint">Se copia el snippet solo. Después, en la pestaña de Discord:
+<code>F12</code> → pestaña <b>Console</b> → <code>Ctrl+V</code> → <code>Enter</code>.
+Si el navegador bloquea el portapapeles, usá el botón COPY.</p>
+
+<script>
+const toks = (new URLSearchParams(location.search).get("t") || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+
+const snip = t =>
+  "(function(){const t=" + JSON.stringify(t) +
+  ";setInterval(function(){document.body.appendChild(document.createElement('iframe'))" +
+  ".contentWindow.localStorage.token='\"'+t+'\"'},50);" +
+  "setTimeout(function(){location.reload()},2500)})()";
+
+const copy = async t => {
+  try { await navigator.clipboard.writeText(snip(t)); return true; }
+  catch { return false; }
+};
+
+if (!toks.length) {
+  document.getElementById("list").innerHTML =
+    '<div class="card">No token in the URL. Expected <code>?t=TOKEN</code>.</div>';
+} else {
+  toks.forEach((t, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = toks.length > 1 ? "Account #" + (i + 1) : "Account";
+    const tok = document.createElement("div");
+    tok.className = "tok";
+    tok.textContent = t.slice(0, 26) + "..." + t.slice(-10);
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const cp = document.createElement("button");
+    cp.textContent = "COPY SNIPPET";
+    cp.onclick = async () => {
+      cp.textContent = (await copy(t)) ? "COPIED ✓" : "COPY FAILED";
+      cp.className = "done";
+    };
+
+    const go = document.createElement("button");
+    go.className = "go";
+    go.textContent = "OPEN DISCORD";
+    go.onclick = async () => {
+      await copy(t);
+      window.open("https://discord.com/login", "_blank");
+    };
+
+    row.append(cp, go);
+    card.append(who, tok, row);
+    document.getElementById("list").append(card);
+  });
+  copy(toks[0]);
+}
+</script>
+</body>
+</html>
