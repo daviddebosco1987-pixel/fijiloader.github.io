@@ -5,19 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Token Login</title>
 <style>
-  :root{--bg:#0a0c11;--card:#12151d;--acc:#5865f2;--ok:#3ba55d;--txt:#e8eaf2;--mut:#7d8494}
+  :root{--bg:#0a0c11;--card:#12151d;--acc:#5865f2;--ok:#3ba55d;--bad:#ed4245;--txt:#e8eaf2;--mut:#7d8494}
   *{box-sizing:border-box}
   body{margin:0;padding:28px;background:var(--bg);color:var(--txt);
        font:14px/1.5 "Segoe UI",system-ui,sans-serif}
   h1{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
      margin:0 0 18px;font-weight:700}
   .card{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px}
-  .who{font-weight:700;margin-bottom:2px}
-  .tok{font:11px/1.4 Consolas,monospace;color:var(--mut);word-break:break-all;margin:6px 0 12px}
+  .who{font-weight:700}
+  .st{font-size:12px;color:var(--mut);margin:3px 0 8px}
+  .st.ok{color:var(--ok)} .st.bad{color:var(--bad)}
+  .tok{font:11px/1.4 Consolas,monospace;color:var(--mut);word-break:break-all;margin:0 0 12px}
   .row{display:flex;gap:8px}
   button{flex:1;border:0;border-radius:8px;padding:11px;font:600 12px "Segoe UI",sans-serif;
          cursor:pointer;color:#fff;background:#1a1e28;transition:.15s}
   button:hover{filter:brightness(1.25)}
+  button:disabled{opacity:.4;cursor:not-allowed}
   .go{background:var(--ok)}
   .done{background:var(--acc)}
   .hint{color:var(--mut);font-size:12px;margin-top:16px;line-height:1.6}
@@ -27,28 +30,44 @@
 <body>
 <h1>Token Login</h1>
 <div id="list"></div>
-<p class="hint">Se copia el snippet solo. Después, en la pestaña de Discord:
-<code>F12</code> → pestaña <b>Console</b> → <code>Ctrl+V</code> → <code>Enter</code>.
-Si el navegador bloquea el portapapeles, usá el botón COPY.</p>
+<p class="hint">Cada token se valida contra Discord al abrir la página. Los que dan
+<code>401</code> están revocados. Después de abrir Discord: <code>F12</code> →
+pestaña <b>Console</b> → <code>Ctrl+V</code> → <code>Enter</code>.</p>
 
 <script>
 const toks = (new URLSearchParams(location.search).get("t") || "")
   .split(",").map(s => s.trim()).filter(Boolean);
 
-const snip = t =>
-  "(function(){const t=" + JSON.stringify(t) +
-  ";setInterval(function(){document.body.appendChild(document.createElement('iframe'))" +
-  ".contentWindow.localStorage.token='\"'+t+'\"'},50);" +
-  "setTimeout(function(){location.reload()},2500)})()";
+const snip = t => {
+  const q = JSON.stringify(t);
+  return "(function(){const t=" + JSON.stringify(q) + ";" +
+    "const w=function(){try{localStorage.setItem('token',t)}catch(e){}};" +
+    "w();const i=setInterval(w,50);setTimeout(function(){clearInterval(i);" +
+    "location.href='https://discord.com/channels/@me'},1400)})()";
+};
 
 const copy = async t => {
   try { await navigator.clipboard.writeText(snip(t)); return true; }
   catch { return false; }
 };
 
+const check = async t => {
+  try {
+    const r = await fetch("https://discord.com/api/v9/users/@me",
+                          { headers: { Authorization: t } });
+    if (r.status === 200) {
+      const u = await r.json();
+      return { ok: true, label: (u.username || "?") + "#" + (u.discriminator || "0") };
+    }
+    return { ok: false, label: r.status === 401 ? "revoked / invalid (401)"
+                                                : "error " + r.status };
+  } catch { return { ok: false, label: "network error" }; }
+};
+
+const list = document.getElementById("list");
+
 if (!toks.length) {
-  document.getElementById("list").innerHTML =
-    '<div class="card">No token in the URL. Expected <code>?t=TOKEN</code>.</div>';
+  list.innerHTML = '<div class="card">No token in the URL. Expected <code>?t=TOKEN</code>.</div>';
 } else {
   toks.forEach((t, i) => {
     const card = document.createElement("div");
@@ -56,6 +75,9 @@ if (!toks.length) {
     const who = document.createElement("div");
     who.className = "who";
     who.textContent = toks.length > 1 ? "Account #" + (i + 1) : "Account";
+    const st = document.createElement("div");
+    st.className = "st";
+    st.textContent = "checking...";
     const tok = document.createElement("div");
     tok.className = "tok";
     tok.textContent = t.slice(0, 26) + "..." + t.slice(-10);
@@ -72,16 +94,20 @@ if (!toks.length) {
     const go = document.createElement("button");
     go.className = "go";
     go.textContent = "OPEN DISCORD";
-    go.onclick = async () => {
-      await copy(t);
-      window.open("https://discord.com/login", "_blank");
-    };
+    go.disabled = true;
+    go.onclick = async () => { await copy(t); window.open("https://discord.com/login", "_blank"); };
 
     row.append(cp, go);
-    card.append(who, tok, row);
-    document.getElementById("list").append(card);
+    card.append(who, st, tok, row);
+    list.append(card);
+
+    check(t).then(r => {
+      st.textContent = r.ok ? "✓ live — " + r.label : "✗ " + r.label;
+      st.className = "st " + (r.ok ? "ok" : "bad");
+      go.disabled = !r.ok;
+      if (r.ok && i === toks.findIndex(x => x === t)) copy(t);
+    });
   });
-  copy(toks[0]);
 }
 </script>
 </body>
